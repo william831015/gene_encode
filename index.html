@@ -306,50 +306,87 @@
     <svg class="threads-icon" width="14" height="14" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M141.537 88.988a66.667 66.667 0 0 0-2.518-1.143c-1.482-27.307-16.403-42.94-41.457-43.1h-.34c-14.986 0-27.449 6.396-35.12 18.036l13.779 9.452c5.73-8.695 14.724-10.548 21.348-10.548h.229c8.249.053 14.474 2.452 18.503 7.129 2.932 3.405 4.893 8.11 5.864 14.05-7.314-1.243-15.224-1.626-23.68-1.14-23.82 1.372-39.134 15.265-38.105 34.569.522 9.792 5.4 18.216 13.735 23.719 7.047 4.652 16.124 6.927 25.557 6.412 12.458-.683 22.231-5.436 29.049-14.127 5.178-6.6 8.452-15.153 9.898-25.93 5.937 3.583 10.337 8.298 12.767 13.966 4.132 9.635 4.373 25.468-8.546 38.376-11.319 11.308-24.925 16.2-45.488 16.351-22.809-.169-40.06-7.484-51.275-21.742C35.236 139.966 29.808 120.682 29.605 96c.203-24.682 5.63-43.966 16.133-57.317C56.954 24.425 74.204 17.11 97.013 16.94c22.975.17 40.526 7.52 52.171 21.847 5.71 7.026 10.015 15.86 12.853 26.162l16.147-4.308c-3.44-12.68-8.853-23.606-16.219-32.668C147.036 9.607 125.202.195 97.07 0h-.113C68.882.195 47.292 9.627 32.788 28.04 19.882 44.481 13.224 67.627 13.001 96v.5c.223 28.273 6.881 51.319 19.787 67.761C47.292 182.373 68.882 191.805 96.957 192h.113c24.96-.173 42.554-6.708 57.048-21.189 18.963-18.944 18.392-42.691 12.142-57.27-4.484-10.454-13.033-18.945-24.723-24.553Zm-43.066 40.626c-10.42.588-21.258-4.092-21.808-14.113-.397-7.466 5.303-15.789 22.515-16.796 1.972-.114 3.905-.169 5.798-.169 6.258 0 12.157.606 17.483 1.769-1.989 24.594-13.82 28.683-23.988 29.309Z" fill="currentColor"/>
     </svg>
-    @bioconstructor_tw
+    bioconstructor_tw
   </a>
 </div>
 
 <script>
   // Encoding strategy:
-  // 1. Get Unicode codepoint of character (e.g. '你' = 20320, 'A' = 65)
-  // 2. Convert to binary, pad to nearest multiple of 2 bits (min 8 bits)
-  // 3. Map each 2-bit pair → A(00) B(01) C(10) D(11)
-  // 4. Characters separated by spaces in output
-  // This works for ALL Unicode characters universally.
+  // Each character type gets a 2-letter header: type-letter + scramble-letter
+  // The scramble-letter encodes a random 2-bit salt (0-3) used to XOR the codepoint
+  // This randomizes the output so identical chars look different & no AAAA runs
+  //
+  // ASCII  (0–127):   'A' + salt(1 letter) + 4 payload letters  = 6 total
+  // Mid    (128–16383):'T' + salt(1 letter) + 7 payload letters  = 9 total
+  // High   (16384+):  'C' + salt(1 letter) + 11 payload letters = 13 total
+  //
+  // salt letter encodes a random 2-bit value (A=00,T=01,C=10,G=11)
+  // payload = codepoint XOR (salt * spread) encoded as ATCG
 
   const TO_ATCG = { '00':'A', '01':'T', '10':'C', '11':'G' };
   const FROM_ATCG = { 'A':'00', 'T':'01', 'C':'10', 'G':'11' };
+  const ATCG_VALS = { 'A':0, 'T':1, 'C':2, 'G':3 };
+
+  function bitsToAtcg(bin) {
+    let r = '';
+    for (let i = 0; i < bin.length; i += 2) r += TO_ATCG[bin[i] + bin[i+1]];
+    return r;
+  }
+
+  function randomSalt() {
+    return Math.floor(Math.random() * 4); // 0-3
+  }
+
+  function saltLetter(s) {
+    return ['A','T','C','G'][s];
+  }
 
   function charToAbcd(ch) {
     const cp = ch.codePointAt(0);
-    // Pad binary to nearest multiple of 2, minimum 8 bits
-    const raw = cp.toString(2);
-    const padLen = Math.max(8, Math.ceil(raw.length / 2) * 2);
-    const bin = raw.padStart(padLen, '0');
-    let result = '';
-    for (let i = 0; i < bin.length; i += 2) result += TO_ATCG[bin[i] + bin[i+1]];
-    return result;
-  }
+    const salt = randomSalt();
+    const sl = saltLetter(salt);
 
-  function atcgToChar(token) {
-    let bin = '';
-    for (const ch of token.toUpperCase()) {
-      if (FROM_ATCG[ch]) bin += FROM_ATCG[ch];
+    if (cp <= 127) {
+      // XOR with salt spread across 8-bit range: salt * 32 (keeps within meaningful bits)
+      const scrambled = cp ^ (salt * 31);
+      return 'A' + sl + bitsToAtcg(scrambled.toString(2).padStart(8, '0'));
+    } else if (cp <= 16383) {
+      const scrambled = cp ^ (salt * 4095);
+      return 'T' + sl + bitsToAtcg(scrambled.toString(2).padStart(14, '0'));
+    } else {
+      const scrambled = cp ^ (salt * 16383);
+      return 'C' + sl + bitsToAtcg(scrambled.toString(2).padStart(22, '0'));
     }
-    if (!bin) return '?';
-    const cp = parseInt(bin, 2);
-    try { return String.fromCodePoint(cp); } catch { return '?'; }
-  }
-
-  function encode(text) {
-    // Use Array.from to correctly handle surrogate pairs (emoji etc.)
-    return Array.from(text).map(charToAbcd).join(' ');
   }
 
   function decode(text) {
-    const tokens = text.trim().toUpperCase().replace(/[^ATCG\s]/g, '').trim().split(/\s+/);
-    return tokens.filter(t => t.length > 0).map(atcgToChar).join('');
+    const clean = text.toUpperCase().replace(/[^ATCG]/g, '');
+    const result = [];
+    let i = 0;
+    while (i < clean.length) {
+      const type = clean[i];
+      let payloadLetters, spread;
+      if      (type === 'A') { payloadLetters = 4;  spread = 31;    }
+      else if (type === 'T') { payloadLetters = 7;  spread = 4095;  }
+      else if (type === 'C') { payloadLetters = 11; spread = 16383; }
+      else { i++; continue; }
+
+      if (i + 2 + payloadLetters > clean.length) break;
+      const salt = ATCG_VALS[clean[i + 1]];
+      const token = clean.slice(i + 2, i + 2 + payloadLetters);
+
+      let bin = '';
+      for (const ch of token) bin += FROM_ATCG[ch] || '00';
+      const scrambled = parseInt(bin, 2);
+      const cp = scrambled ^ (salt * spread);
+      try { result.push(String.fromCodePoint(cp)); } catch { result.push('?'); }
+      i += 2 + payloadLetters;
+    }
+    return result.join('');
+  }
+
+  function encode(text) {
+    return Array.from(text).map(charToAbcd).join('');
   }
 
   let mode = 'encode';
