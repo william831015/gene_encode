@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Genencoder</title>
+<link id="favicon" rel="icon" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --border: #1e1e2e;
+    --A: #ff4d6d;
+    --T: #4dffb4;
+    --C: #4d9fff;
+    --G: #ffcc4d;
+    --text: #e0e0f0;
+    --muted: #555570;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: 
+      radial-gradient(ellipse at 20% 20%, rgba(255,77,109,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, rgba(77,159,255,0.06) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .grid-bg {
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    position: relative;
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(3rem, 8vw, 6rem);
+    letter-spacing: 0.1em;
+    line-height: 1;
+  }
+
+  h1 span:nth-child(1) { color: var(--A); }
+  h1 span:nth-child(2) { color: var(--T); }
+  h1 span:nth-child(3) { color: var(--C); }
+  h1 span:nth-child(4) { color: var(--G); }
+
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.75rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-top: 0.5rem;
+  }
+
+  .legend {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+  }
+
+  .legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    position: relative;
+  }
+
+  .mode-toggle {
+    display: flex;
+    align-self: center;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+  }
+
+  .mode-btn {
+    padding: 0.6rem 2rem;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+
+  .mode-btn.active {
+    background: var(--border);
+    color: var(--text);
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .panel-label {
+    padding: 0.7rem 1rem;
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 140px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.9rem;
+    padding: 1rem;
+    resize: vertical;
+    line-height: 1.8;
+  }
+
+  textarea::placeholder { color: var(--muted); }
+
+  .output-display {
+    min-height: 140px;
+    padding: 1rem;
+    font-size: 0.9rem;
+    line-height: 1.8;
+    word-break: break-all;
+    letter-spacing: 0.05em;
+  }
+
+  .char-A { color: var(--A); }
+  .char-T { color: var(--T); }
+  .char-C { color: var(--C); }
+  .char-G { color: var(--G); }
+  .char-sep { color: var(--muted); }
+
+  .arrow-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .convert-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    padding: 0.7rem 2.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .convert-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,77,109,0.1), rgba(77,159,255,0.1));
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .convert-btn:hover::before { opacity: 1; }
+  .convert-btn:hover { border-color: var(--A); }
+
+  .copy-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: color 0.2s;
+    padding: 0.2rem 0.5rem;
+  }
+
+  .copy-btn:hover { color: var(--T); }
+
+
+  .footer {
+    margin-top: 2.5rem;
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+  }
+
+  .footer a {
+    color: var(--T);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .footer a:hover {
+    color: var(--text);
+    border-bottom-color: var(--T);
+  }
+
+  .threads-icon {
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 0.3em;
+    opacity: 0.7;
+  }
+</style>
+</head>
+<body>
+<div class="grid-bg"></div>
+
+<header>
+  <h1><span style="color:var(--A)">G</span><span style="color:var(--T)">e</span><span style="color:var(--C)">n</span><span style="color:var(--G)">e</span><span style="color:var(--text)">ncoder</span></h1>
+</header>
+
+<div class="container">
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="btn-encode" onclick="setMode('encode')">ENCODE</button>
+    <button class="mode-btn" id="btn-decode" onclick="setMode('decode')">DECODE</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label" id="input-label">INPUT TEXT</div>
+    <textarea id="input" placeholder="Type anything here..."></textarea>
+  </div>
+
+  <div class="arrow-row">
+    <button class="convert-btn" onclick="convert()">▼ CONVERT ▼</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-label">
+      <span id="output-label">ENCODED OUTPUT</span>
+      <button class="copy-btn" onclick="copyOutput()">[ COPY ]</button>
+    </div>
+    <div class="output-display" id="output"></div>
+  </div>
+</div>
+
+<div class="footer">
+  created by &nbsp;
+    <a href="https://www.threads.com/@bioconstructor_tw" target="_blank" rel="noopener">
+    <svg class="threads-icon" width="14" height="14" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M141.537 88.988a66.667 66.667 0 0 0-2.518-1.143c-1.482-27.307-16.403-42.94-41.457-43.1h-.34c-14.986 0-27.449 6.396-35.12 18.036l13.779 9.452c5.73-8.695 14.724-10.548 21.348-10.548h.229c8.249.053 14.474 2.452 18.503 7.129 2.932 3.405 4.893 8.11 5.864 14.05-7.314-1.243-15.224-1.626-23.68-1.14-23.82 1.372-39.134 15.265-38.105 34.569.522 9.792 5.4 18.216 13.735 23.719 7.047 4.652 16.124 6.927 25.557 6.412 12.458-.683 22.231-5.436 29.049-14.127 5.178-6.6 8.452-15.153 9.898-25.93 5.937 3.583 10.337 8.298 12.767 13.966 4.132 9.635 4.373 25.468-8.546 38.376-11.319 11.308-24.925 16.2-45.488 16.351-22.809-.169-40.06-7.484-51.275-21.742C35.236 139.966 29.808 120.682 29.605 96c.203-24.682 5.63-43.966 16.133-57.317C56.954 24.425 74.204 17.11 97.013 16.94c22.975.17 40.526 7.52 52.171 21.847 5.71 7.026 10.015 15.86 12.853 26.162l16.147-4.308c-3.44-12.68-8.853-23.606-16.219-32.668C147.036 9.607 125.202.195 97.07 0h-.113C68.882.195 47.292 9.627 32.788 28.04 19.882 44.481 13.224 67.627 13.001 96v.5c.223 28.273 6.881 51.319 19.787 67.761C47.292 182.373 68.882 191.805 96.957 192h.113c24.96-.173 42.554-6.708 57.048-21.189 18.963-18.944 18.392-42.691 12.142-57.27-4.484-10.454-13.033-18.945-24.723-24.553Zm-43.066 40.626c-10.42.588-21.258-4.092-21.808-14.113-.397-7.466 5.303-15.789 22.515-16.796 1.972-.114 3.905-.169 5.798-.169 6.258 0 12.157.606 17.483 1.769-1.989 24.594-13.82 28.683-23.988 29.309Z" fill="currentColor"/>
+    </svg>
+    @bioconstructor_tw
+  </a>
+</div>
+
+<script>
+  // Encoding strategy:
+  // 1. Get Unicode codepoint of character (e.g. '你' = 20320, 'A' = 65)
+  // 2. Convert to binary, pad to nearest multiple of 2 bits (min 8 bits)
+  // 3. Map each 2-bit pair → A(00) B(01) C(10) D(11)
+  // 4. Characters separated by spaces in output
+  // This works for ALL Unicode characters universally.
+
+  const TO_ATCG = { '00':'A', '01':'T', '10':'C', '11':'G' };
+  const FROM_ATCG = { 'A':'00', 'T':'01', 'C':'10', 'G':'11' };
+
+  function charToAbcd(ch) {
+    const cp = ch.codePointAt(0);
+    // Pad binary to nearest multiple of 2, minimum 8 bits
+    const raw = cp.toString(2);
+    const padLen = Math.max(8, Math.ceil(raw.length / 2) * 2);
+    const bin = raw.padStart(padLen, '0');
+    let result = '';
+    for (let i = 0; i < bin.length; i += 2) result += TO_ATCG[bin[i] + bin[i+1]];
+    return result;
+  }
+
+  function atcgToChar(token) {
+    let bin = '';
+    for (const ch of token.toUpperCase()) {
+      if (FROM_ATCG[ch]) bin += FROM_ATCG[ch];
+    }
+    if (!bin) return '?';
+    const cp = parseInt(bin, 2);
+    try { return String.fromCodePoint(cp); } catch { return '?'; }
+  }
+
+  function encode(text) {
+    // Use Array.from to correctly handle surrogate pairs (emoji etc.)
+    return Array.from(text).map(charToAbcd).join(' ');
+  }
+
+  function decode(text) {
+    const tokens = text.trim().toUpperCase().replace(/[^ATCG\s]/g, '').trim().split(/\s+/);
+    return tokens.filter(t => t.length > 0).map(atcgToChar).join('');
+  }
+
+  let mode = 'encode';
+
+  function setMode(m) {
+    mode = m;
+    document.getElementById('btn-encode').classList.toggle('active', m === 'encode');
+    document.getElementById('btn-decode').classList.toggle('active', m === 'decode');
+    document.getElementById('input-label').textContent = m === 'encode' ? 'INPUT TEXT' : 'ENCODED INPUT (ATCG)';
+    document.getElementById('output-label').textContent = m === 'encode' ? 'ENCODED OUTPUT' : 'DECODED TEXT';
+    document.getElementById('input').placeholder = m === 'encode' ? 'Type anything here... (any language, emoji, symbols)' : 'Paste ATCG encoded text here...';
+    document.getElementById('input').value = '';
+    document.getElementById('output').innerHTML = '';
+    document.getElementById('output').style.color = '';
+  }
+
+  function colorize(encoded) {
+    return encoded.split('').map(ch => {
+      if (ch === ' ') return '<span class="char-sep"> </span>';
+      return `<span class="char-${ch}">${ch}</span>`;
+    }).join('');
+  }
+
+  function convert() {
+    const input = document.getElementById('input').value;
+    const out = document.getElementById('output');
+    if (!input.trim()) { out.innerHTML = ''; return; }
+    if (mode === 'encode') {
+      out.style.color = '';
+      out.innerHTML = colorize(encode(input));
+    } else {
+      out.style.color = 'var(--T)';
+      out.textContent = decode(input);
+    }
+  }
+
+  document.getElementById('input').addEventListener('input', convert);
+
+  function copyOutput() {
+    const text = document.getElementById('output').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.querySelector('.copy-btn');
+      btn.textContent = '[ COPIED! ]';
+      setTimeout(() => btn.textContent = '[ COPY ]', 1500);
+    });
+  }
+
+  // Generate favicon via canvas
+  (function() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const ctx = c.getContext('2d');
+
+    // Background
+    ctx.fillStyle = '#0a0a0f';
+    ctx.beginPath();
+    ctx.roundRect(0, 0, 64, 64, 10);
+    ctx.fill();
+
+    // Letters A T C G in 2x2 grid, large and bold
+    const letters = [
+      { ch: 'A', color: '#ff4d6d', x: 8,  y: 28 },
+      { ch: 'T', color: '#4dffb4', x: 34, y: 28 },
+      { ch: 'C', color: '#4d9fff', x: 8,  y: 56 },
+      { ch: 'G', color: '#ffcc4d', x: 34, y: 56 },
+    ];
+
+    ctx.font = 'bold 28px monospace';
+    letters.forEach(({ ch, color, x, y }) => {
+      ctx.fillStyle = color;
+      ctx.fillText(ch, x, y);
+    });
+
+    document.getElementById('favicon').href = c.toDataURL('image/png');
+  })();
+</script>
+</body>
+</html>
